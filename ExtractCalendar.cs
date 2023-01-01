@@ -10,9 +10,19 @@ using Newtonsoft.Json;
 using HtmlAgilityPack;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Collections.Generic;
 
 namespace Company.Function
 {
+    public class TrashCalendar
+    {
+        public DateTime Date { get; set; }
+        public bool Umido { get; set; }
+        public bool Vegetale { get; set; }
+        public bool Carta { get; set; }
+        public bool VPL { get; set; }
+        public bool Secco { get; set; }
+    }
     public static class ExtractCalendar
     {
         [FunctionName("ExtractCalendar")]
@@ -33,7 +43,18 @@ namespace Company.Function
             var url = @"https://contarina.it/cittadino/raccolta-differenziata/eco-calendario";
             HtmlWeb web = new HtmlWeb();
             var doc = web.Load(url);
-                        
+            
+            var results = new List<TrashCalendar>();
+
+            // from https://zetcode.com/csharp/datetime-parse/
+            Regex rgxDate = new Regex(@"\d{2}-\d{2}-\d{4}");
+            // from https://stackoverflow.com/a/14918404
+            Regex rgxUmido = new Regex(nameof(TrashCalendar.Umido), RegexOptions.IgnoreCase);
+            Regex rgxVegetale = new Regex(nameof(TrashCalendar.Vegetale), RegexOptions.IgnoreCase);
+            Regex rgxSecco = new Regex(nameof(TrashCalendar.Secco), RegexOptions.IgnoreCase);
+            Regex rgxVPL = new Regex(nameof(TrashCalendar.VPL), RegexOptions.IgnoreCase);
+            Regex rgxCarta = new Regex(nameof(TrashCalendar.Carta), RegexOptions.IgnoreCase);
+
             // all nodes with class comune_zona_38
             //var nodes = doc.DocumentNode.SelectNodes("//table[contains(@class, 'comune_zona_38')]//tr");
             // all tr of table with id 
@@ -43,34 +64,46 @@ namespace Company.Function
                 var innerText = node.InnerText;
                                 
                 // from https://stackoverflow.com/a/14918404
-                Regex rgxDate = new Regex(@"\d{2}-\d{2}-\d{4}");
+                
                 Match mat = rgxDate.Match(innerText);
                 //if it has a date is a calendar row
                 if (mat.Success)
                 {
-                    //Console.WriteLine(mat.Value);
-                    // from https://zetcode.com/csharp/datetime-parse/
+                    var calendar = new TrashCalendar();
+                    
                     var date = DateTime.ParseExact(mat.Value, "dd-MM-yyyy", null);
+                    calendar.Date = date;
                     Console.WriteLine(date.ToLongDateString());
 
-                    // from https://stackoverflow.com/a/14918404
-                    Regex rgxUmido = new Regex(@"umido", RegexOptions.IgnoreCase);
-                    Match matUmido = rgxUmido.Match(innerText);
-                    if (matUmido.Success)
+                    if (rgxUmido.IsMatch(innerText))
                     {
-                        Console.WriteLine("umido");
+                        calendar.Umido = true;
                     }
-                        
-                    
+                    if (rgxVegetale.IsMatch(innerText))
+                    {
+                        calendar.Vegetale = true;
+                    }
+                    if (rgxSecco.IsMatch(innerText))
+                    {
+                        calendar.Secco = true;
+                    }
+                    if (rgxVPL.IsMatch(innerText))
+                    {
+                        calendar.VPL = true;
+                    }  
+                    if (rgxCarta.IsMatch(innerText))
+                    {
+                        calendar.Carta = true;
+                    }
+                    results.Add(calendar);
                 }
             }
-            
             
             string responseMessage = string.IsNullOrEmpty(name)
                 ? "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response."
                 : $"Hello, {name}. This HTTP triggered function executed successfully.";
 
-            return new OkObjectResult(responseMessage);
+            return new OkObjectResult(results);
         }
     }
 }
